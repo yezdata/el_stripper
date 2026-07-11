@@ -1,0 +1,82 @@
+name: Build and Release CLI
+
+on:
+  push:
+    tags:
+      - 'v*' 
+  workflow_dispatch: 
+
+permissions:
+  contents: write 
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: el_stripper-linux
+            binary_src: dist/el_stripper.bin
+            binary_dst: el_stripper-linux-x86_64
+          - os: macos-latest
+            artifact_name: el_stripper-macos
+            binary_src: dist/el_stripper.bin
+            binary_dst: el_stripper-macos
+          - os: windows-latest
+            artifact_name: el_stripper-windows
+            binary_src: dist/el_stripper.exe
+            binary_dst: el_stripper-windows-amd64.exe
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Make script executable
+        if: matrix.os != 'windows-latest'
+        run: chmod +x compile.bash
+
+      - name: Run compile script
+        shell: bash
+        run: ./compile.bash
+
+      - name: Rename binary for release
+        shell: bash
+        run: mv ${{ matrix.binary_src }} ${{ matrix.binary_dst }}
+
+      - name: Upload temporary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.binary_dst }}
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') 
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true 
+
+      - name: Display structure of downloaded files
+        run: ls -R artifacts
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true 
