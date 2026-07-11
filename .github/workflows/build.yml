@@ -23,7 +23,7 @@ jobs:
           - os: macos-latest
             artifact_name: el_stripper-macos
             binary_src: dist/el_stripper.bin
-            binary_dst: el_stripper-macos-universal
+            binary_dst: el_stripper-macos-arm64
           - os: windows-latest
             artifact_name: el_stripper-windows
             binary_src: dist/el_stripper.exe
