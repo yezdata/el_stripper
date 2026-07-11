@@ -12,6 +12,7 @@ fi
 "$VENV_PYTHON" -m nuitka \
     --standalone \
     --onefile \
+    --accept-downloads \
     --enable-plugin=anti-bloat \
     --output-dir="$OUTPUT_DIR" \
     el_stripper.py
