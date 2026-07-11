@@ -25,27 +25,57 @@ class CommentStripper(cst.CSTTransformer):
     def leave_Comment(
         self, original_node: cst.Comment, updated_node: cst.Comment
     ) -> Union[cst.Comment, cst.RemovalSentinel]:
+        
         return cst.RemoveFromParent()
 
     def leave_EmptyLine(
         self, original_node: cst.EmptyLine, updated_node: cst.EmptyLine
-    ) -> Union[cst.EmptyLine, cst.RemovalSentinel]:
-        if original_node.comment is not None:
-            return cst.RemoveFromParent()
+    ) -> cst.EmptyLine:
+        
+        
+        if updated_node.comment is not None:
+            return updated_node.with_changes(comment=None)
         return updated_node
 
-    def leave_SimpleStatementLine(
-        self,
-        original_node: cst.SimpleStatementLine,
-        updated_node: cst.SimpleStatementLine,
-    ) -> Union[cst.SimpleStatementLine, cst.RemovalSentinel]:
-        if self.strip_docstrings:
-            if len(updated_node.body) == 1 and isinstance(
-                updated_node.body[0], cst.Expr
-            ):
-                expr = updated_node.body[0]
-                if isinstance(expr.value, cst.SimpleString):
-                    return cst.RemoveFromParent()
+    def leave_FunctionDef(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
+        if not self.strip_docstrings:
+            return updated_node
+
+        
+        if updated_node.get_docstring() is not None:
+            
+            new_body = updated_node.body.body[1:]
+            return updated_node.with_changes(
+                body=updated_node.body.with_changes(body=new_body)
+            )
+        return updated_node
+
+    def leave_ClassDef(
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
+        if not self.strip_docstrings:
+            return updated_node
+
+        
+        if updated_node.get_docstring() is not None:
+            new_body = updated_node.body.body[1:]
+            return updated_node.with_changes(
+                body=updated_node.body.with_changes(body=new_body)
+            )
+        return updated_node
+
+    def leave_Module(
+        self, original_node: cst.Module, updated_node: cst.Module
+    ) -> cst.Module:
+        if not self.strip_docstrings:
+            return updated_node
+
+        
+        if updated_node.get_docstring() is not None:
+            new_body = updated_node.body[1:]
+            return updated_node.with_changes(body=new_body)
         return updated_node
 
 
@@ -73,51 +103,50 @@ def strip_file(file_path: Path, strip_docstrings: bool) -> None:
         logging.exception(f"[X] Error while stripping {file_path}")
 
 
-def load_gitignore(root_dir: Path) -> pathspec.PathSpec:
+def load_gitignore(target_path: Path) -> pathspec.PathSpec:
+    root_dir = target_path.parent if target_path.is_file() else target_path
     gitignore_path = root_dir / ".gitignore"
+
     if gitignore_path.is_file():
-        with open(gitignore_path, "r", encoding="utf-8") as f:
-            return pathspec.PathSpec.from_lines("gitwildmatch", f.readlines())
+        try:
+            with open(gitignore_path, "r", encoding="utf-8") as f:
+                return pathspec.PathSpec.from_lines("gitwildmatch", f.readlines())
+        except OSError:
+            pass
     return pathspec.PathSpec.from_lines("gitwildmatch", [])
 
 
-def get_files_from_dir(
-    target_dir: Path, root_dir: Path, spec: pathspec.PathSpec
-) -> list[Path]:
+def get_files_to_process(target_path: Path, spec: pathspec.PathSpec) -> list[Path]:
+    root_dir = target_path.parent if target_path.is_file() else target_path
+
+    if target_path.is_file():
+        if target_path.suffix != ".py":
+            logging.error(f"File {target_path} is not a Python file.")
+            return []
+        try:
+            rel_path = target_path.relative_to(root_dir)
+            if spec.match_file(str(rel_path)):
+                return []
+        except ValueError:
+            pass
+        return [target_path]
+
     files_to_process = []
 
-    for root, dirs, files in os.walk(target_dir):
-        current_dir = Path(root)
-
-        valid_dirs = []
-        for d in dirs:
-            if d in DEFAULT_IGNORE:
-                continue
-
-            dir_path = current_dir / d
-            try:
-                rel_dir_path = dir_path.relative_to(root_dir)
-                if spec.match_file(f"{rel_dir_path}/"):
-                    continue
-            except ValueError:
-                pass
-            valid_dirs.append(d)
-
-        dirs[:] = valid_dirs
+    for root, dirs, files in os.walk(target_path):
+        dirs[:] = [d for d in dirs if d not in DEFAULT_IGNORE]
 
         for file in files:
             if not file.endswith(".py"):
                 continue
 
-            file_path = current_dir / file
+            file_path = Path(root) / file
             try:
-                rel_file_path = file_path.relative_to(root_dir)
-                if spec.match_file(str(rel_file_path)):
-                    continue
+                rel_path = file_path.relative_to(root_dir)
+                if not spec.match_file(str(rel_path)):
+                    files_to_process.append(file_path)
             except ValueError:
-                pass
-
-            files_to_process.append(file_path)
+                files_to_process.append(file_path)
 
     return files_to_process
 
@@ -135,29 +164,21 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    
+    import sys
+
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+    logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
 
     target_path = Path(args.path).resolve()
-    root_dir = Path.cwd()
-    spec = load_gitignore(root_dir)
 
-    files_to_process = []
-    if target_path.is_file():
-        if target_path.suffix == ".py":
-            try:
-                rel_file_path = target_path.relative_to(root_dir)
-                if not spec.match_file(str(rel_file_path)):
-                    files_to_process.append(target_path)
-            except ValueError:
-                files_to_process.append(target_path)
-        else:
-            logging.error(f"File {target_path} is not a Python file.")
-            return
-    elif target_path.is_dir():
-        files_to_process = get_files_from_dir(target_path, root_dir, spec)
-    else:
+    if not target_path.exists():
         logging.error(f"Path {target_path} does not exist.")
         return
+
+    spec = load_gitignore(target_path)
+    files_to_process = get_files_to_process(target_path, spec)
 
     if not files_to_process:
         logging.info("No Python files found to process.")
