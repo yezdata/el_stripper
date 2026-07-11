@@ -46,10 +46,7 @@ $dest = "$env:LOCALAPPDATA\Programs\bin"
 Move-Item el_stripper-windows-amd64.exe "$dest\el_stripper.exe"
 ```
 
-Add $dest to your user PATH if not already present
-```powershell
-[Environment]::SetEnvironmentVariable("PATH", "$env:PATH;$dest", "User")
-```
+> Add `$dest` to your user `PATH` if not already present (`[Environment]::SetEnvironmentVariable("PATH", "$env:PATH;$dest", "User"`)
 
 ### Option 2 — Build from source
 
