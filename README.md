@@ -1,4 +1,5 @@
 # el_stripper
+> Created in collaboration with [Vojtěch Jež](https://github.com/vojtajez)
 
 A small CLI utility that strips comments (and optionally docstrings) from Python files in-place, using a CST-based transformer for safe, syntax-aware edits.
 
