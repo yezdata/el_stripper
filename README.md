@@ -50,6 +50,7 @@ Move-Item el_stripper-windows-amd64.exe "$dest\el_stripper.exe"
 > Add `$dest` to your user `PATH` if not already present (`[Environment]::SetEnvironmentVariable("PATH", "$env:PATH;$dest", "User"`)
 
 ### Option 2 — Build from source
+> Using the prepared `compile.bash` script (Linux / macOS only)
 
 **Prerequisites:** Python 3.10+, a C compiler, and [Nuitka](https://nuitka.net/).
 
@@ -60,7 +61,7 @@ cd el_stripper
 
 # 2. Create a virtual environment and install dependencies
 python3 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install libcst pathspec nuitka
 
 # 3. Compile
