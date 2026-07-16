@@ -16,7 +16,7 @@ el_stripper path/to/project/
 el_stripper path/to/project/ --doc
 ```
 
-Files and directories listed in `.gitignore` (as well as common noise dirs like `.venv`, `__pycache__`, `.git`) are automatically skipped.
+Files and directories listed in `.gitignore` (as well as common noise dirs like `.venv`, `__pycache__`, `.git`...) are automatically skipped.
 
 ---
 
@@ -43,14 +43,14 @@ mv el_stripper-linux-x86_64 "${XDG_BIN_HOME:-$HOME/.local/bin}/el_stripper"
 
 **Windows** (`el_stripper-windows-amd64.exe`)
 ```powershell
-$dest = "$env:LOCALAPPDATA\Programs\bin"
+$dest = "$env:LOCALAPPDATA\el_stripper"
 Move-Item el_stripper-windows-amd64.exe "$dest\el_stripper.exe"
 ```
 
 > Add `$dest` to your user `PATH` if not already present (`[Environment]::SetEnvironmentVariable("PATH", "$env:PATH;$dest", "User"`)
 
 ### Option 2 — Build from source
-> Using the prepared `compile.bash` script (Linux / macOS only)
+> Using the prepared `compile.bash` script:
 
 **Prerequisites:** Python 3.10+, a C compiler, and [Nuitka](https://nuitka.net/).
 
